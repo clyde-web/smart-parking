@@ -30,7 +30,11 @@ class SmartParkingApp:
 		self.total_row = 2
 		# Store frames and labels
 		self.sections = []
+		# Board variables
+		self.slot1_start = board.get_pin(f'd:8:i')
+		self.slot1_end = board.get_pin(f'd:7:i')
 		# callback response variables
+		self.db_requires_update = False
 		self.slots_response = {}
 		self.queue = []
 		# Initialize UI
@@ -79,18 +83,8 @@ class SmartParkingApp:
 	# Handle the callback for the entrance gate
 	def entrance_callback(self, value):
 		if value is not None and value is False:
-			# Our predefined ir sensors
-			irs = [
-				{'slot': 0, 'start': 12, 'end': 13},
-				{'slot': 1, 'start': 11, 'end': 10},
-				{'slot': 2, 'start': 9, 'end': 8},
-				{'slot': 3, 'start': 7, 'end': 6}
-			]
-			for ir in irs:
-				start_slot = board.get_pin(f'd:{ir['start']}:i')
-				end_slot = board.get_pin(f'd:{ir['end']}:i')
-				start_slot.register_callback(lambda value: self.slots_callback(value, {'name': ir['slot'], 'status': 'start'}))
-				end_slot.register_callback(lambda value: self.slots_callback(value, {'name': ir['slot'], 'status': 'end'}))
+			self.slot1_start.register_callback(lambda value: self.slots_callback(value, {'name': 0, 'status': 'start'}))
+			self.slot1_end.register_callback(lambda value: self.slots_callback(value, {'name': 0, 'status': 'end'}))
 
 	# Handle the callback for the exit gate
 	# This is where you can add the logic to calculate the toll fee
@@ -110,27 +104,39 @@ class SmartParkingApp:
 		# if yes it will to the database to set the status as taken
 		if slot['start'] is False and slot['end'] is False:
 			# code here to save to database to set the status as taken
+			self.db_requires_update = True
 			self.slots_response[args['name']]['parking_flg'] = True
 			frame.config(bg=color_red)
 			label.config(text="Taken", bg=color_red)
 		# this condition check for the maintenance status
 		# if only 1 of the ir sensors detected a car
-		elif slot['start'] is False and slot['end'] is True and slot['start'] is True and slot['end'] is False:
+		elif slot['start'] is False and slot['end'] is True or slot['start'] is True and slot['end'] is False:
 			# code here to save to database to set the status as maintenance
+			self.db_requires_update = True
 			frame.config(bg=color_warning)
 			label.config(text="Maintenance", bg=color_warning)
 		# this condition check if the parked car is leaving the parking lot
 		# then add it to the queue
 		elif slot['start'] is True and slot['end'] is True and 'parking_flg' in self.slots_response[args['name']] and self.slots_response[args['name']]['parking_flg'] is True:
 			# code here to save to database to set the status as available
+			self.db_requires_update = True
 			self.queue.append(int(args['name']))
+			del self.slots_response[args['name']]['parking_flg']
+		# default
+		else:
+			frame.config(bg=color_blue)
+			label.config(text=f"Slot {args['name']+1}", bg=color_blue)
+		
+		if self.db_requires_update is True:
+			# code here to update the database with the new status
+			self.db_requires_update = False
 
 	# Listen to the IR sensors for entrance and exit
 	def listener(self):
 		sensor_entrance = board.get_pin(f'd:{IR_ENTRANCE}:i')
 		sensor_entrance.register_callback(self.entrance_callback)
-		sensor_exit = board.get_pin(f'd:{IR_EXIT}:i')
-		sensor_exit.register_callback(self.exit_callback)
+		#sensor_exit = board.get_pin(f'd:{IR_EXIT}:i')
+		#sensor_exit.register_callback(self.exit_callback)
 		#if self.exit_response is not None and self.exit_response == False:
 			# asyncio.create_task(self.open_servo(SERVO_EXIT, 65))
 			# code here to calculate the toll fee according to the timestamp saved in the database
