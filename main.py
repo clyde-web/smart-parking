@@ -26,13 +26,19 @@ class SmartParkingApp:
 
 		# Initialize columns and rows length
 		self.column_length = 4
-		self.row_length = 1 # set to 2 if the 2nd floor is ready
+		self.row_length = 1 # TODO: set to 2 if the 2nd floor is ready
 		self.total_row = 2
 		# Store frames and labels
 		self.sections = []
 		# Board variables
-		self.slot1_start = board.get_pin(f'd:8:i')
-		self.slot1_end = board.get_pin(f'd:7:i')
+		self.slot1_start = board.get_pin('d:13:i')
+		self.slot1_end = board.get_pin('d:12:i')
+		self.slot2_start = board.get_pin('d:11:i')
+		self.slot2_end = board.get_pin('d:10:i')
+		self.slot3_start = board.get_pin('d:9:i')
+		self.slot3_end = board.get_pin('d:8:i')
+		self.slot4_start = board.get_pin('d:7:i')
+		self.slot4_end = board.get_pin('d:6:i')
 		# callback response variables
 		self.db_requires_update = False
 		self.slots_response = {}
@@ -74,7 +80,7 @@ class SmartParkingApp:
 
 	# Toll UI
 	def init_toll_ui(self):
-		label = tk.Label(self.root, text='Toll Both: -', bg=color_charcoal, fg='white', font=('Arial', 16, 'bold'), height=2)
+		label = tk.Label(self.root, text='Toll Booth: -', bg=color_charcoal, fg='white', font=('Arial', 16, 'bold'), height=2)
 		label.grid(row=self.total_row, column=0, columnspan=5, sticky="nsew", padx=2, pady=2)
 		label.grid_propagate(False)
 
@@ -82,14 +88,25 @@ class SmartParkingApp:
 
 	# Handle the callback for the entrance gate
 	def entrance_callback(self, value):
+		# TODO: add servo motor when done configuring
 		if value is not None and value is False:
 			self.slot1_start.register_callback(lambda value: self.slots_callback(value, {'name': 0, 'status': 'start'}))
 			self.slot1_end.register_callback(lambda value: self.slots_callback(value, {'name': 0, 'status': 'end'}))
+			self.slot2_start.register_callback(lambda value: self.slots_callback(value, {'name': 1, 'status': 'start'}))
+			self.slot2_end.register_callback(lambda value: self.slots_callback(value, {'name': 1, 'status': 'end'}))
+			self.slot3_start.register_callback(lambda value: self.slots_callback(value, {'name': 2, 'status': 'start'}))
+			self.slot3_end.register_callback(lambda value: self.slots_callback(value, {'name': 2, 'status': 'end'}))
+			self.slot4_start.register_callback(lambda value: self.slots_callback(value, {'name': 3, 'status': 'start'}))
+			self.slot4_end.register_callback(lambda value: self.slots_callback(value, {'name': 3, 'status': 'end'}))
 
 	# Handle the callback for the exit gate
 	# This is where you can add the logic to calculate the toll fee
 	def exit_callback(self, value):
-		self.exit_response = value
+		# TODO: add servo motor when done configuring
+		if value is not None and value is False:
+			toll_index = len(self.sections) - 1
+			frame, label = self.sections[toll_index]  # get the frame and label for the toll booth
+			label.config(text="Toll Booth: PHP 200.00", bg=color_charcoal)
 	
 	# Handle the callback for the slots
 	def slots_callback(self, value, args):
@@ -121,7 +138,6 @@ class SmartParkingApp:
 			# code here to save to database to set the status as available
 			self.db_requires_update = True
 			self.queue.append(int(args['name']))
-			del self.slots_response[args['name']]['parking_flg']
 		# default
 		else:
 			frame.config(bg=color_blue)
@@ -135,11 +151,8 @@ class SmartParkingApp:
 	def listener(self):
 		sensor_entrance = board.get_pin(f'd:{IR_ENTRANCE}:i')
 		sensor_entrance.register_callback(self.entrance_callback)
-		#sensor_exit = board.get_pin(f'd:{IR_EXIT}:i')
-		#sensor_exit.register_callback(self.exit_callback)
-		#if self.exit_response is not None and self.exit_response == False:
-			# asyncio.create_task(self.open_servo(SERVO_EXIT, 65))
-			# code here to calculate the toll fee according to the timestamp saved in the database
+		sensor_exit = board.get_pin(f'd:{IR_EXIT}:i')
+		sensor_exit.register_callback(self.exit_callback)
 		
 	# Handle the entry and exit gates servo motors
 	async def open_servo(self, pin, angle):
@@ -153,7 +166,6 @@ class SmartParkingApp:
 		board.samplingOff()
 		self.root.quit()
 		self.root.destroy()
-
 
 if __name__ == '__main__':
 	root = tk.Tk()
