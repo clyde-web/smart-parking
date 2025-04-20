@@ -1,0 +1,23 @@
+#slots
+ -id
+ -name
+ -status [1] = Available [2] = Occupied [3] = Maintenance
+
+#histories
+ -id
+ -slot_id
+ -status [1] = Parked [2] = Departed [3] = Done
+ -time_in
+ -time_out
+
+xxxxxxxxxxxxxxxxxxxx
+S1:Y            S5:N setCursor(16, 1)
+S2:Y            S6:N
+S3:Y            S7:N
+S4:N            S8:Y
+xxxxxxxxxxxxxxxxxxxx
+
+xxxxxxxxxxxxxxxx
+    Toll Fee    
+     250.00     
+xxxxxxxxxxxxxxxx
