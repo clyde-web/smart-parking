@@ -33,7 +33,7 @@ class SmartParkingApp:
 		# Store frames and labels
 		self.sections = []
 		# Initialize the interface
-		self.init_interface()
+		self.create_ui()
 		# Configure grid layout
 		self.root.grid_columnconfigure(0, weight=1)
 		for i in range(1, 5):
@@ -52,7 +52,7 @@ class SmartParkingApp:
 		self.serial_thread = threading.Thread(target=self.read_serial_data, daemon=True)
 		self.serial_thread.start()
 
-	def init_interface(self):
+	def create_ui(self):
 		for row in range(self.row_length):
 			# Create a label for the floor
 			floor_label_text = 'Ground Floor' if row == 0 else '2nd Floor'
@@ -76,7 +76,7 @@ class SmartParkingApp:
 		toll_label.grid(row=self.total_row, column=0, columnspan=self.column_length+1, sticky='nsew', padx=2, pady=2)
 		toll_label.grid_propagate(False)
 		# Store toll label for updating toll amount
-		self.sections.append((self.root, toll_label))
+		self.toll = toll_label
 	
 	# Update UI
 	def update_interface(self):
@@ -108,61 +108,61 @@ class SmartParkingApp:
 				command = {"cmd": "slots", "context": status_string}
 				self.send_command(ser, command)
 				while True:
-					line = ser.readline().decode('utf-8').strip()
-					if not line:
-						continue
-					try:
-						data = json.loads(line)
-						if 'cmd' in data:
-							if data['cmd'] == CMD_ENTRANCE:
-								# Get the available slots
-								available = get_available_slots()
-								if available > 0:
-									# Open the entrance gate
-									command = {"cmd": "open_entrance"}
-									self.send_command(ser, command)
-								else:
-									# No available slots, do not open the gate
-									command = {"cmd": "full_slot"}
-									self.send_command(ser, command)
-							if data['cmd'] == CMD_EXIT:
-								# Open the exit gate and display the toll fee
-								id = get_log_history_that_are_away()
-								if id is not None:
-									_, label = self.sections[len(self.sections)-1]
-									fee, slot = calculate_toll(id)
-									label.config(text=f"Toll: {chr(0x20B1)}{fee:.2f}")
-									command = {"cmd": "open_exit", "context": fee, "slot": slot}
-									self.send_command(ser, command)
-									self.slots = get_slots()
-									self.root.after(0, self.update_interface)
-							if data['cmd'] == CMD_PARKING:
-								# Update the slot status in the database
-								slot = data['context']
-								for row in self.slots:
-									if row[0] == slot and row[1] == AVAILABLE:
-										update_slot(slot, OCCUPIED)
-										log_slot_history(slot)
-										# Update the UI for the slot
-										self.slots = get_slots()
-										self.root.after(0, self.update_interface)
-										command = {"cmd": "parked", "context": slot}
-										self.send_command(ser, command)
-										break
-							if data['cmd'] == CMD_DEPARTED:
-								# Update the slot status in the database
-								slot = data['context']
-								for row in self.slots:
-									if row[0] == slot and row[1] == OCCUPIED:
-										id = get_log_history_id(slot)
+					if ser.in_waiting > 0:
+						line = ser.readline().decode('utf-8').strip()
+						if line:
+							try:
+								data = json.loads(line)
+								if 'cmd' in data:
+									if data['cmd'] == CMD_ENTRANCE:
+										# Get the available slots
+										available = get_available_slots()
+										if available > 0:
+											# Open the entrance gate
+											command = {"cmd": "open_entrance"}
+											self.send_command(ser, command)
+										else:
+											# No available slots, do not open the gate
+											command = {"cmd": "full_slot"}
+											self.send_command(ser, command)
+									if data['cmd'] == CMD_EXIT:
+										# Open the exit gate and display the toll fee
+										id = get_log_history_that_are_away()
 										if id is not None:
-											update_log_history_to_away(id)
-										break
-							if data['cmd'] == CMD_CLEAR_TOLL:
-								_, label = self.sections[len(self.sections)-1]
-								label.config(text="Toll: "+chr(0x20B1)+"0.00")
-					except json.JSONDecodeError as e:
-						print(f"JSON error: {e} | line was: {line}")
+											fee, slot = calculate_toll(id)
+											text = f"Toll: {chr(0x20B1)}{fee:.2f}"
+											self.root.after(0, lambda: self.toll.config(text=text))
+											command = {"cmd": "open_exit", "context": fee, "slot": slot}
+											self.send_command(ser, command)
+											self.slots = get_slots()
+											self.root.after(0, self.update_interface)
+									if data['cmd'] == CMD_PARKING:
+										# Update the slot status in the database
+										slot = data['context']
+										for row in self.slots:
+											if row[0] == slot and row[1] == AVAILABLE:
+												update_slot(slot, OCCUPIED)
+												log_slot_history(slot)
+												# Update the UI for the slot
+												self.slots = get_slots()
+												self.root.after(0, self.update_interface)
+												command = {"cmd": "parked", "context": slot}
+												self.send_command(ser, command)
+												break
+									if data['cmd'] == CMD_DEPARTED:
+										# Update the slot status in the database
+										slot = data['context']
+										for row in self.slots:
+											if row[0] == slot and row[1] == OCCUPIED:
+												id = get_log_history_id(slot)
+												if id is not None:
+													update_log_history_to_away(id)
+												break
+									if data['cmd'] == CMD_CLEAR_TOLL:
+										text = f"Toll {chr(0x20B1)}0.00"
+										self.root.after(0, lambda: self.toll.config(text=text))
+							except json.JSONDecodeError as e:
+								print(f"JSON error: {e} | line was: {line}")
 
 		except serial.SerialException as e:
 			print(f"Serial error: {e}")
