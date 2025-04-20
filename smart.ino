@@ -64,14 +64,14 @@ void handle_sensor_reading() {
 			slot.parked = true;
 			write.clear();
 			write["cmd"] = "parking";
-			write["context"] = 1;
+			write["context"] = slot.index;
 			serializeJson(write, Serial);
 			Serial.println();
 		} else if (startSensor == 1 && slots[s] == "N" && slot.parked) {
 			slot.parked = false;
 			write.clear();
 			write["cmd"] = "departed";
-			write["context"] = 1;
+			write["context"] = slot.index;
 			serializeJson(write, Serial);
 			Serial.println();
 		}
