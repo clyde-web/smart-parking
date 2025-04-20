@@ -4,7 +4,6 @@ import threading
 import serial
 import time
 import json
-import datetime
 
 # Global Variables
 color_blue = '#559bfb'
