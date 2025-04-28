@@ -130,7 +130,8 @@ class SmartParkingApp:
 										id = get_log_history_that_are_away()
 										if id is not None:
 											fee, slot = calculate_toll(id)
-											text = f"Toll: {chr(0x20B1)}{fee:.2f}"
+											fee = f'{fee:.2f}'
+											text = f"Toll: {chr(0x20B1)}{fee}"
 											self.root.after(0, lambda: self.toll.config(text=text))
 											command = {"cmd": "open_exit", "context": fee, "slot": slot}
 											self.send_command(ser, command)
@@ -159,7 +160,7 @@ class SmartParkingApp:
 													update_log_history_to_away(id)
 												break
 									if data['cmd'] == CMD_CLEAR_TOLL:
-										text = f"Toll {chr(0x20B1)}0.00"
+										text = f"Toll: {chr(0x20B1)}0.00"
 										self.root.after(0, lambda: self.toll.config(text=text))
 							except json.JSONDecodeError as e:
 								print(f"JSON error: {e} | line was: {line}")
